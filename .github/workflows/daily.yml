@@ -36,6 +36,7 @@ jobs:
           python -c "import os; open('leetcode_session.json', 'w', encoding='utf-8').write(os.environ.get('LEETCODE_SESSION_JSON', '{}'))"
 
       - name: Random daily delay (humanize)
+        if: github.event_name == 'schedule'
         run: |
           # Sleep for a random time between 1 and 180 minutes (up to 3 hours)
           # This ensures the bot runs at a different time every morning IST.
