@@ -48,15 +48,21 @@ Pass the generated tokens to the cloud so GitHub Actions can impersonate your lo
 4. Name the secret exactly: `LEETCODE_SESSION_JSON`.
 5. Paste the JSON contents and click **Add secret**.
 
-> **Note:** Make sure **Workflow permissions** (Settings -> Actions -> General) is set to **Read and write permissions** so the bot can commit your daily `.py` solutions to your repository!
+### 3. Add Optional S-Tier Secrets
+If you want the bot to **refactor the code using AI** so you never submit duplicate code, or send you a **webhook notification**, add these optional secrets too!
+
+1. Go to **Settings** -> **Secrets and variables** -> **Actions**.
+2. **GEMINI_API_KEY**: Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey) and paste it as a secret. (*This enables AI Stealth Refactoring*).
+3. **DISCORD_WEBHOOK_URL**: Create a webhook in your Discord server settings (Integrations -> Webhooks) and paste the URL here. (*This enables daily push notifications to your phone!*)
 
 ---
 
 ## 🛡️ Anti-Ban & Humanization Measures
 To ensure your account is protected from being flagged as automated:
-- **Randomized Cron Job:** The GitHub Action is programmed to trigger at a slightly randomized time between `7:00 AM` and `10:00 AM IST` rather than precisely on the hour.
-- **Dynamic Interactions:** All DOM element waits, keystrokes, clearing logic, clipboard usage, and clicking behaviors utilize `random.randint()` millisecond sleep gaps.
-- **Headed Emulation:** Injects headless evasion properties (e.g. bypassing `navigator.webdriver`).
+- **AI Stealth Code Refactoring**: (If Gemini API key provided) Automatically refactors top community solutions to change variable names and syntax styles, producing 100% unique code invisible to plagiarism systems.
+- **Randomized Cron Job**: The GitHub Action is programmed to trigger at a slightly randomized time between `7:00 AM` and `10:00 AM IST`.
+- **Dynamic Interactions**: DOM waiting lengths, keystrokes, and clicking behaviors utilize `random.randint()` millisecond sleep gaps.
+- **Multi-Language Fallbacks**: If the daily challenge is an SQL or Pandas problem, the bot intelligently parses, modifies localStorage, and submits in MySQL or JS automatically.
 
 ---
 
