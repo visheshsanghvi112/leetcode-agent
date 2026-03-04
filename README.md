@@ -1,71 +1,55 @@
 <div align="center">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/1/19/LeetCode_logo_black.png" width="200" alt="LeetCode Logo">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/1/19/LeetCode_logo_black.png" width="180" alt="LeetCode Logo">
   
-  # LeetCode Auto-Agent 🤖
+  # 🚀 LeetCode God-Mode Agent
   
-  **A completely autonomous, stealthy Python agent that solves the daily LeetCode challenge using the community's most-upvoted Python3 solution.**
+  **The ultimate autonomous agent that solves your daily LeetCode challenges while you sleep.**
 
-  [![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/visheshsanghvi112/leetcode-agent/actions)
-  [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-  [![Playwright](https://img.shields.io/badge/Playwright-Browser_Automation-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev/python/)
+  [![GitHub Actions](https://img.shields.io/badge/Auto_Solver-Online-2088FF?style=for-the-badge&logo=github-actions)](https://github.com/visheshsanghvi112/leetcode-agent/actions)
+  [![AI Stealth](https://img.shields.io/badge/Gemini_AI-Stealth_Refactoring-FF6F00?style=for-the-badge&logo=google-gemini)](https://aistudio.google.com/)
+  [![Notifications](https://img.shields.io/badge/Telegram-24%2F7_Chatbot-26A5E4?style=for-the-badge&logo=telegram)](https://core.telegram.org/bots)
 
 </div>
 
 ---
 
-## ✨ Features
-- **100% Autonomous:** Runs automatically in the cloud every day via GitHub Actions.
-- **Stealth & Anti-Bot Detection:** Bypasses Cloudflare using Playwright. Includes randomized cursor wait times, keystroke delays, and execution times to mimic true human behavior so your LeetCode account remains completely safe.
-- **Self-Documenting:** Captures, formats, and commits exactly what it submitted directly to the `solutions/` folder to naturally build your GitHub activity.
-- **Guaranteed Solutions:** Leverages the authenticated LeetCode Discuss API to scrape the highest-voted, most optimal `Python3` community solutions.
+## 🔥 What exactly does this do?
+Imagine never losing your LeetCode streak again. This Python agent wakes up automatically every morning, scrapes the absolute best community solution, and submits it for you. 
+
+But it gets better:
+- 🧠 **AI Stealth:** It passes the code through **Google Gemini 2.5 Flash** to completely refactor the variables and syntax. Your submissions are **100% uniquely yours**, effortlessly bypassing plagiarism checks.
+- 🥷 **Anti-Ban Architecture:** From randomized daily trigger times to organic Playwright DOM interactions (human-like typing & clipboard usage) — detection systems don't stand a chance.
+- 📱 **Telegram Chatbot:** The moment your challenge is solved, it texts your phone. You can even interact with a 24/7 AI coding assistant directly via the bot!
+- 🌐 **Multi-Language:** Database problem? Panda dataframe? No problem. The agent intelligently switches between `Python3`, `MySQL`, and `JavaScript` as needed.
 
 ---
 
-## 🚀 Setup Instructions
+## ⚡ How to turn on God-Mode (Setup)
 
-### 1. Generate Local Session (Only do once!)
-The agent needs your LeetCode session cookie so it can authenticate without triggering manual Google/GitHub OAuth captchas.
+### 1. The Core Setup
+1. Clone the repo and run `pip install -r requirements.txt` and `playwright install chromium`. 
+2. Run `python login_setup.py`. A browser will pop up—log into LeetCode normally and hit `Enter` in your terminal.
+3. This generates a `leetcode_session.json` file. Copy its entire text box.
+4. In your GitHub repository, go to **Settings** -> **Secrets and variables** -> **Actions**. 
+5. Click **New repository secret**, name it `LEETCODE_SESSION_JSON`, and paste!
 
-1. Clone this repository locally.
-2. Install Python 3.11+ and dependencies:
-   ```bash
-   pip install -r requirements.txt
-   playwright install chromium
-   ```
-3. Run the setup script:
-   ```bash
-   python login_setup.py
-   ```
-4. A browser window will open. Navigate to LeetCode and log in manually.
-5. Once logged in, return to the terminal and press `Enter`. The script will generate a file named `leetcode_session.json` which contains your authentication tokens.
+*(P.S. Make sure your GitHub Action Workflow permissions are set to "Read and write"!)*
 
-### 2. Configure GitHub Actions
-Pass the generated tokens to the cloud so GitHub Actions can impersonate your logged-in browser securely.
-
-1. Open `leetcode_session.json` and **copy its entire contents**.
-2. Go to your GitHub repository: **Settings** -> **Secrets and variables** -> **Actions**.
-3. Click **New repository secret**.
-4. Name the secret exactly: `LEETCODE_SESSION_JSON`.
-5. Paste the JSON contents and click **Add secret**.
-
-### 3. Add Optional S-Tier Secrets
-If you want the bot to **refactor the code using AI** so you never submit duplicate code, or send you a **webhook notification**, add these optional secrets too!
-
-1. Go to **Settings** -> **Secrets and variables** -> **Actions**.
-2. **GEMINI_API_KEY**: Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey) and paste it as a secret. (*This enables AI Stealth Refactoring*).
-3. **TELEGRAM_BOT_TOKEN**: Create a bot on Telegram using BotFather and paste the token here.
-4. **TELEGRAM_CHAT_ID**: Put the chat ID of where you want the bot to message you (your own ID or a group ID). (*This enables daily push notifications to your phone!*)
+### 2. The Fun Stuff (Optional Secrets)
+Want the AI stealth and Telegram texts? Add these three remaining GitHub secrets:
+* **`GEMINI_API_KEY`**: Grab a free token from Google AI Studio.
+* **`TELEGRAM_BOT_TOKEN`**: Message `@BotFather` on Telegram to get your bot token.
+* **`TELEGRAM_CHAT_ID`**: Send your new bot a message, hit the API, and grab your personal Chat ID integer. 
 
 ---
 
-## 🛡️ Anti-Ban & Humanization Measures
-To ensure your account is protected from being flagged as automated:
-- **AI Stealth Code Refactoring**: (If Gemini API key provided) Automatically refactors top community solutions to change variable names and syntax styles, producing 100% unique code invisible to plagiarism systems.
-- **Randomized Cron Job**: The GitHub Action is programmed to trigger at a slightly randomized time between `7:00 AM` and `10:00 AM IST`.
-- **Dynamic Interactions**: DOM waiting lengths, keystrokes, and clicking behaviors utilize `random.randint()` millisecond sleep gaps.
-- **Multi-Language Fallbacks**: If the daily challenge is an SQL or Pandas problem, the bot intelligently parses, modifies localStorage, and submits in MySQL or JS automatically.
+## 🚀 That's it.
+Sit back, relax, and let the cloud handle the grind. The agent logs everything directly to the `/solutions` folder, naturally building out your GitHub commits history.
+
+**Welcome to the future of streaks. 🥂**
 
 ---
 
-## ⚖️ Disclaimer
-This project is intended strictly for educational purposes and personal archival of algorithmic problems. Over-reliance on automation defeats the purpose of learning data structures and algorithms. Use responsibly!
+<p align="center">
+  <i>Made with ❤️ by <a href="https://visheshsanghvi.me">Vishesh Sanghvi</a>. Connect with me on <a href="https://www.linkedin.com/in/vishesh-sanghvi-96b16a237/">LinkedIn</a>!</i>
+</p>
