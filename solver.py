@@ -4,7 +4,8 @@ Uses LeetCode GraphQL for the daily problem and the scraper (Playwright) for the
 """
 import logging
 from leetcode_api import get_daily_problem
-from scraper import get_top_python_solution
+from scraper import get_top_solution
+from ai_refactor import refactor_code
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -15,7 +16,8 @@ def solve_daily(session_file=SESSION_FILE):
     """
     Main solver function:
     1. Fetches today's daily problem via GraphQL
-    2. Scrapes the top Python3 solution using the logged-in session
+    2. Scrapes the top community solution using the logged-in session
+    3. Uses AI to mildly refactor the code (if key provided) to prevent ban triggers
     Returns a dict with problem info and solution code, or None on failure.
     """
     logging.info("Fetching today's daily problem...")
@@ -34,14 +36,17 @@ def solve_daily(session_file=SESSION_FILE):
 
     logging.info(f"Daily Problem: {title} ({difficulty}) — {slug}")
 
-    logging.info("Fetching top Python3 community solution (logged-in session)...")
-    code = get_top_python_solution(slug, session_file=session_file)
+    logging.info("Fetching top community solution (logged-in session)...")
+    code, language = get_top_solution(slug, session_file=session_file)
 
     if not code:
         logging.error("Could not fetch or extract a community solution.")
         return None
 
-    logging.info(f"Successfully extracted solution code ({len(code)} chars).")
+    logging.info(f"Successfully extracted solution code ({len(code)} chars) in {language}.")
+    
+    # Send through the AI auto-refactor bypass
+    code = refactor_code(code, language)
 
     return {
         "title": title,
@@ -50,6 +55,7 @@ def solve_daily(session_file=SESSION_FILE):
         "date": date,
         "link": link,
         "code": code,
+        "language": language,
     }
 
 

@@ -15,6 +15,7 @@ from datetime import datetime
 
 from solver import solve_daily
 from submit import submit_solution
+from notifier import send_discord_notification
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -27,12 +28,18 @@ def sanitize_filename(name):
     return re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
 
 
-def save_solution(date_str, title, code, result):
+def save_solution(date_str, title, code, result, language="python3"):
     """Saves the solution to the solutions/ directory."""
     os.makedirs(SOLUTIONS_DIR, exist_ok=True)
     
+    ext = ".py"
+    if language == "mysql":
+        ext = ".sql"
+    elif language == "javascript":
+        ext = ".js"
+    
     safe_title = sanitize_filename(title)
-    filename = f"{date_str}-{safe_title}.py"
+    filename = f"{date_str}-{safe_title}{ext}"
     filepath = os.path.join(SOLUTIONS_DIR, filename)
 
     header = f'''# LeetCode Daily Challenge
@@ -76,6 +83,7 @@ def main():
     submission_result = submit_solution(
         question_slug=result["slug"],
         code=result["code"],
+        language=result["language"],
         session_file=SESSION_FILE,
     )
 
@@ -91,7 +99,11 @@ def main():
         title=result["title"],
         code=result["code"],
         result=submission_result,
+        language=result["language"],
     )
+
+    # Step 5: Send Notification
+    send_discord_notification(result['title'], result['difficulty'], submission_result)
 
     logging.info("=" * 60)
     logging.info(f"Daily challenge complete!")

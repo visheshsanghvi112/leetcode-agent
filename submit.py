@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 SESSION_FILE = "leetcode_session.json"
 
 
-def submit_solution(question_slug, code, session_file=SESSION_FILE):
+def submit_solution(question_slug, code, language="python3", session_file=SESSION_FILE):
     """
     Automates the browser to go to the problem page, paste the code, and click submit.
     """
@@ -37,7 +37,7 @@ def submit_solution(question_slug, code, session_file=SESSION_FILE):
             
             # Go to leetcode.com first to set local storage
             page.goto("https://leetcode.com/")
-            page.evaluate("window.localStorage.setItem('global_lang', 'python3')")
+            page.evaluate(f"window.localStorage.setItem('global_lang', '{language}')")
             
             logging.info(f"Navigating to problem page: {problem_url}")
             page.goto(problem_url, wait_until="domcontentloaded")

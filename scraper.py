@@ -29,24 +29,34 @@ def load_cookies_from_session(session_file):
     return cookies
 
 
-def get_top_python_solution(question_slug, session_file=SESSION_FILE):
-    """Fetches the top Python3 community solution using multiple strategies."""
-    # Strategy 1: Authenticated discuss API
-    code = try_discuss_api(question_slug, session_file)
-    if code:
-        return code
+def get_top_solution(question_slug, session_file=SESSION_FILE):
+    """Fetches the top community solution trying multiple languages."""
+    languages_to_try = [
+        ("python", "python3"), 
+        ("mysql", "mysql"), 
+        ("pandas", "pandas"), 
+        ("javascript", "javascript")
+    ]
+    
+    for search_query, leetcode_lang_id in languages_to_try:
+        logging.info(f"Attempting to fetch {search_query} solution...")
+        
+        # Strategy 1: Authenticated discuss API
+        code = try_discuss_api(question_slug, search_query, leetcode_lang_id, session_file)
+        if code:
+            return code, leetcode_lang_id
 
-    # Strategy 2: Playwright scrape
-    code = try_playwright_scrape(question_slug, session_file)
-    if code:
-        return code
+        # Strategy 2: Playwright scrape
+        code = try_playwright_scrape(question_slug, search_query, leetcode_lang_id, session_file)
+        if code:
+            return code, leetcode_lang_id
 
-    logging.error("All solution fetch strategies failed.")
-    return None
+    logging.error("All solution fetch strategies and language fallbacks failed.")
+    return None, None
 
 
-def try_discuss_api(question_slug, session_file):
-    """Uses the authenticated discuss API to fetch the top solution."""
+def try_discuss_api(question_slug, search_query, leetcode_lang_id, session_file):
+    """Uses the authenticated discuss API to fetch the top solution for a language."""
     try:
         cookies = load_cookies_from_session(session_file)
     except Exception as e:
@@ -107,7 +117,7 @@ def try_discuss_api(question_slug, session_file):
         "questionId": question_id,
         "orderBy": "most_votes",
         "skip": 0,
-        "query": "python",
+        "query": search_query,
         "first": 10,
         "tags": [],
     }
@@ -125,7 +135,7 @@ def try_discuss_api(question_slug, session_file):
         for topic in topics:
             content = topic.get("post", {}).get("content", "")
             if content:
-                code = extract_python_from_markdown(content)
+                code = extract_code_from_markdown(content, search_query)
                 if code:
                     logging.info(f"Found solution via API: '{topic.get('title')}' (votes: {topic['post'].get('voteCount', 0)})")
                     return code
@@ -136,12 +146,12 @@ def try_discuss_api(question_slug, session_file):
     return None
 
 
-def try_playwright_scrape(question_slug, session_file):
+def try_playwright_scrape(question_slug, search_query, leetcode_lang_id, session_file):
     """
     Fallback: Uses Playwright to open the solutions list,
-    iterates through the top solution posts looking for Python code.
+    iterates through the top solution posts looking for code.
     """
-    solutions_url = f"https://leetcode.com/problems/{question_slug}/solutions/?languageTags=python3&orderBy=most_votes"
+    solutions_url = f"https://leetcode.com/problems/{question_slug}/solutions/?languageTags={leetcode_lang_id}&orderBy=most_votes"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -191,10 +201,10 @@ def try_playwright_scrape(question_slug, session_file):
                 # Get the full page HTML to search for Python code
                 page_content = page.content()
 
-                # Check if there's Python code in the page
-                python_code = extract_python_from_html(page_content)
+                # Check if there's code in the page
+                python_code = extract_code_from_html(page_content, search_query)
                 if python_code:
-                    logging.info(f"[Playwright] Found Python solution on attempt {i+1} ({len(python_code)} chars)")
+                    logging.info(f"[Playwright] Found {search_query} solution on attempt {i+1} ({len(python_code)} chars)")
                     browser.close()
                     return python_code
 
@@ -205,20 +215,20 @@ def try_playwright_scrape(question_slug, session_file):
                     for el in elements:
                         try:
                             text = el.inner_text(timeout=3000).strip()
-                            if text and len(text) > 20 and is_python_code(text):
+                            if text and len(text) > 20 and is_language_code(text, search_query):
                                 code_blocks.append(text)
                         except:
                             pass
 
                 if code_blocks:
                     best = max(code_blocks, key=len)
-                    cleaned = clean_solution_code(best)
+                    cleaned = clean_solution_code(best, search_query)
                     if cleaned:
-                        logging.info(f"[Playwright] Found Python code on attempt {i+1} ({len(cleaned)} chars)")
+                        logging.info(f"[Playwright] Found {search_query} code on attempt {i+1} ({len(cleaned)} chars)")
                         browser.close()
                         return cleaned
 
-            logging.error("[Playwright] No Python solution found in top 3 posts.")
+            logging.error(f"[Playwright] No {search_query} solution found in top 3 posts.")
             browser.close()
             return None
 
@@ -228,49 +238,25 @@ def try_playwright_scrape(question_slug, session_file):
             return None
 
 
-def is_python_code(text):
-    """Heuristic to check if a code block is Python."""
-    python_indicators = [
-        "class Solution",
-        "def ",
-        "self.",
-        "return ",
-        "for ",
-        "while ",
-        "if ",
-        "elif ",
-        "import ",
-        "range(",
-        "len(",
-        "print(",
-        "# ",
-    ]
-    non_python_indicators = [
-        "public class",
-        "public static",
-        "System.out",
-        "int main(",
-        "void ",
-        "vector<",
-        "#include",
-        "cout <<",
-        "nullptr",
-        "var ",
-        "let ",
-        "const ",
-        "function(",
-        "func ",
-        "fn ",
-    ]
-
+def is_language_code(text, language="python"):
     text_lower = text.lower()
-    python_score = sum(1 for ind in python_indicators if ind.lower() in text_lower)
-    non_python_score = sum(1 for ind in non_python_indicators if ind.lower() in text_lower)
+    
+    if language in ["python", "python3"]:
+        python_indicators = ["class Solution", "def ", "self.", "return ", "for ", "while ", "import ", "range(", "len("]
+        return sum(1 for ind in python_indicators if ind.lower() in text_lower) >= 2
+    elif language == "mysql":
+        sql_indicators = ["select ", "from ", "where ", "group by", "order by", "left join", "insert ", "update "]
+        return sum(1 for ind in sql_indicators if ind.lower() in text_lower) >= 2
+    elif language == "javascript":
+        js_indicators = ["var ", "let ", "const ", "function", "=>", "console.log", "return "]
+        return sum(1 for ind in js_indicators if ind.lower() in text_lower) >= 2
+    elif language == "pandas":
+        pandas_indicators = ["import pandas", "pd.", "def ", ".map", ".apply", ".merge", ".groupby"]
+        return sum(1 for ind in pandas_indicators if ind.lower() in text_lower) >= 2
+    return True
 
-    return python_score > non_python_score and python_score >= 2
 
-
-def extract_python_from_html(html_content):
+def extract_code_from_html(html_content, language="python"):
     """Extracts Python code blocks from raw HTML."""
     # Look for code blocks that mention python in their class/lang attributes
     # Pattern: <code class="...python..." ...>...</code> or <pre><code>class Solution...</code></pre>
@@ -284,13 +270,13 @@ def extract_python_from_html(html_content):
         for match in matches:
             # Strip HTML tags from the match
             clean = re.sub(r'<[^>]+>', '', match).strip()
-            if clean and len(clean) > 20 and is_python_code(clean):
-                return clean_solution_code(clean)
+            if clean and len(clean) > 20 and is_language_code(clean, language):
+                return clean_solution_code(clean, language)
 
     return None
 
 
-def extract_python_from_markdown(content):
+def extract_code_from_markdown(content, language="python"):
     """Extracts Python code blocks from markdown content."""
     if not content:
         return None
@@ -306,10 +292,10 @@ def extract_python_from_markdown(content):
     for pattern in patterns:
         matches = re.findall(pattern, content, re.DOTALL)
         if matches:
-            # Filter for Python and pick the longest
-            python_matches = [m for m in matches if is_python_code(m)]
-            if python_matches:
-                return max(python_matches, key=len).strip()
+            # Filter for the language and pick the longest
+            valid_matches = [m for m in matches if is_language_code(m, language)]
+            if valid_matches:
+                return max(valid_matches, key=len).strip()
             # If no python-specific match, return longest that has class Solution
             for m in matches:
                 if "class Solution" in m:
@@ -323,13 +309,16 @@ def extract_python_from_markdown(content):
     return None
 
 
-def clean_solution_code(raw_code):
-    """Extracts a clean class Solution block from raw code."""
+def clean_solution_code(raw_code, language="python"):
+    """Extracts a clean Solution block from raw code based on the language."""
     if not raw_code:
         return None
 
     # Decode HTML entities
     raw_code = raw_code.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").replace("&quot;", '"')
+    
+    if language not in ["python", "python3"]:
+        return raw_code.strip()
 
     # If we already have class Solution, extract it
     match = re.search(r'(class\s+Solution.*)', raw_code, re.DOTALL)
@@ -355,11 +344,11 @@ def clean_solution_code(raw_code):
 if __name__ == "__main__":
     import sys
     slug = sys.argv[1] if len(sys.argv) > 1 else "special-positions-in-a-binary-matrix"
-    print(f"Fetching top Python3 solution for: {slug}")
-    code = get_top_python_solution(slug)
+    print(f"Fetching top solution for: {slug}")
+    code, lang = get_top_solution(slug)
     if code:
         print("=" * 60)
-        print("Extracted Code:")
+        print(f"Extracted {lang} Code:")
         print("=" * 60)
         print(code)
     else:
