@@ -35,6 +35,10 @@ def submit_solution(question_slug, code, session_file=SESSION_FILE):
             
             page = context.new_page()
             
+            # Go to leetcode.com first to set local storage
+            page.goto("https://leetcode.com/")
+            page.evaluate("window.localStorage.setItem('global_lang', 'python3')")
+            
             logging.info(f"Navigating to problem page: {problem_url}")
             page.goto(problem_url, wait_until="domcontentloaded")
             
