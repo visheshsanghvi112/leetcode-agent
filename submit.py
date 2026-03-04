@@ -50,22 +50,24 @@ def submit_solution(question_slug, code, session_file=SESSION_FILE):
             editor = page.locator('.monaco-editor').first
             editor.wait_for(state="visible", timeout=15000)
             editor.click()
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(random.randint(500, 1000))
             
             # 2. Select all existing code (Ctrl+A or Cmd+A)
             logging.info("Clearing existing code...")
             modifier = "Meta" if "Mac" in page.evaluate("navigator.platform") else "Control"
             page.keyboard.press(f"{modifier}+A")
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(random.randint(300, 600))
             page.keyboard.press("Backspace")
-            page.wait_for_timeout(500)
+            page.wait_for_timeout(random.randint(500, 900))
             
             # 3. Paste the new code via Clipboard API
             logging.info("Pasting solution code...")
             page.evaluate("([code]) => navigator.clipboard.writeText(code)", [code])
-            page.wait_for_timeout(300)
+            page.wait_for_timeout(random.randint(300, 800))
             page.keyboard.press(f"{modifier}+V")
-            page.wait_for_timeout(1000)
+            
+            # Wait a chunk so the editor "reads" the paste before clicking submit
+            page.wait_for_timeout(random.randint(1500, 2500))
             
             # 4. Click Submit
             logging.info("Clicking Submit button...")
