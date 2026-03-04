@@ -33,7 +33,7 @@ jobs:
         env:
           LEETCODE_SESSION_JSON: ${{ secrets.LEETCODE_SESSION_JSON }}
         run: |
-          echo "$LEETCODE_SESSION_JSON" > leetcode_session.json
+          python -c "import os; open('leetcode_session.json', 'w', encoding='utf-8').write(os.environ.get('LEETCODE_SESSION_JSON', '{}'))"
 
       - name: Random daily delay (humanize)
         run: |
