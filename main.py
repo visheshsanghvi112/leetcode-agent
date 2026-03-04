@@ -68,6 +68,15 @@ def main():
         logging.error("Run 'python login_setup.py' first to generate the session file.")
         sys.exit(1)
 
+    import json
+    try:
+        with open(SESSION_FILE, "r", encoding="utf-8") as f:
+            json.load(f)
+    except Exception as e:
+        logging.error(f"Session file '{SESSION_FILE}' is not valid JSON: {e}")
+        logging.error("Please ensure your LEETCODE_SESSION_JSON secret is a valid JSON dictionary, not just the raw cookie string or an empty value.")
+        sys.exit(1)
+
     # Step 1 & 2: Fetch daily problem + get solution
     result = solve_daily()
     if not result:

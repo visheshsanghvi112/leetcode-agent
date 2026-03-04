@@ -33,7 +33,13 @@ jobs:
         env:
           LEETCODE_SESSION_JSON: ${{ secrets.LEETCODE_SESSION_JSON }}
         run: |
-          printenv LEETCODE_SESSION_JSON > leetcode_session.json
+          set -euo pipefail
+          if [ -z "${LEETCODE_SESSION_JSON:-}" ]; then
+            echo "LEETCODE_SESSION_JSON is not set or empty."
+            exit 1
+          fi
+          printf '%s' "$LEETCODE_SESSION_JSON" > leetcode_session.json
+          python -m json.tool leetcode_session.json >/dev/null
 
       - name: Random daily delay (humanize)
         if: github.event_name == 'schedule'
