@@ -9,6 +9,7 @@ on:
 jobs:
   solve-and-submit:
     runs-on: ubuntu-latest
+    environment: leetcode
 
     permissions:
       contents: write
