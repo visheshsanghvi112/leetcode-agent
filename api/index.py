@@ -28,6 +28,13 @@ def ask_gemini(user_text):
         return f"Neural error processing query: {str(e)}"
 
 class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"LeetCode Telegram Agent API is running!")
+        return
+
     def do_POST(self):
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
