@@ -4,32 +4,36 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-def send_discord_notification(title, difficulty, result):
-    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
-    if not webhook_url:
-        logging.info("No DISCORD_WEBHOOK_URL found. Skipping notification.")
+def send_telegram_notification(title, difficulty, result):
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    
+    if not bot_token or not chat_id:
+        logging.info("No TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID found. Skipping notification.")
         return
 
-    # Determine color based on result
-    color = 3066993 if "Accepted" in result else 15158332 # Green or Red
+    icon = "✅" if "Accepted" in result else "❌"
     
-    embed = {
-        "title": f"LeetCode Daily: {title}",
-        "description": f"**Difficulty:** {difficulty}\n**Result:** {result}",
-        "color": color,
-        "author": {
-            "name": "LeetCode Auto-Agent 🤖"
-        }
+    message = f"""
+{icon} **LeetCode Daily**
+**Problem:** {title}
+**Difficulty:** {difficulty}
+**Result:** {result}
+"""
+    
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
     }
     
-    data = {"embeds": [embed]}
-    
     try:
-        req = requests.post(webhook_url, json=data)
+        req = requests.post(url, json=payload)
         req.raise_for_status()
-        logging.info("Discord notification sent successfully.")
+        logging.info("Telegram notification sent successfully.")
     except Exception as e:
-        logging.error(f"Failed to send Discord notification: {e}")
+        logging.error(f"Failed to send Telegram notification: {e}")
 
 if __name__ == "__main__":
-    send_discord_notification("Test Problem", "Hard", "✅ ACCEPTED!")
+    send_telegram_notification("Test Problem", "Hard", "✅ ACCEPTED!")

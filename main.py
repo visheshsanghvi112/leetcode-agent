@@ -15,7 +15,7 @@ from datetime import datetime
 
 from solver import solve_daily
 from submit import submit_solution
-from notifier import send_discord_notification
+from notifier import send_telegram_notification
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -103,7 +103,7 @@ def main():
     )
 
     # Step 5: Send Notification
-    send_discord_notification(result['title'], result['difficulty'], submission_result)
+    send_telegram_notification(result['title'], result['difficulty'], submission_result)
 
     logging.info("=" * 60)
     logging.info(f"Daily challenge complete!")

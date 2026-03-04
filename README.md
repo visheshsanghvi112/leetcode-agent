@@ -53,7 +53,8 @@ If you want the bot to **refactor the code using AI** so you never submit duplic
 
 1. Go to **Settings** -> **Secrets and variables** -> **Actions**.
 2. **GEMINI_API_KEY**: Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey) and paste it as a secret. (*This enables AI Stealth Refactoring*).
-3. **DISCORD_WEBHOOK_URL**: Create a webhook in your Discord server settings (Integrations -> Webhooks) and paste the URL here. (*This enables daily push notifications to your phone!*)
+3. **TELEGRAM_BOT_TOKEN**: Create a bot on Telegram using BotFather and paste the token here.
+4. **TELEGRAM_CHAT_ID**: Put the chat ID of where you want the bot to message you (your own ID or a group ID). (*This enables daily push notifications to your phone!*)
 
 ---
 
