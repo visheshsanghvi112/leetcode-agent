@@ -9,6 +9,9 @@ on:
 jobs:
   solve-and-submit:
     runs-on: ubuntu-latest
+    
+    # Use the leetcode environment you created to access its secrets/variables
+    environment: leetcode
 
     permissions:
       contents: write
