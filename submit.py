@@ -71,9 +71,14 @@ def submit_solution(question_slug, code, language="python3", session_file=SESSIO
             
             # 4. Click Submit
             logging.info("Clicking Submit button...")
-            submit_btn = page.locator('button[data-e2e-locator="console-submit-button"]').first
-            submit_btn.click()
-            
+            try:
+                submit_btn = page.locator('button[data-e2e-locator="console-submit-button"]').first
+                submit_btn.wait_for(state="attached", timeout=5000)
+                submit_btn.click()
+            except Exception as e:
+                logging.warning(f"Primary submit button failed. Using fallback. Error: {e}")
+                # Fallback: Click the button that has text "Submit"
+                page.locator('button:has-text("Submit")').first.click()
             # 5. Wait for the submission result
             logging.info("Waiting for result (usually takes 5-15s)...")
             
