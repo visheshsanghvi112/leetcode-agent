@@ -101,13 +101,15 @@ def try_discuss_api(question_slug, search_query, leetcode_lang_id, session_file)
     query questionTopicsList($questionId: String!, $orderBy: TopicSortingOption, $skip: Int!, $query: String!, $first: Int!, $tags: [String!]) {
       questionTopicsList(questionId: $questionId, orderBy: $orderBy, skip: $skip, query: $query, first: $first, tags: $tags) {
         totalNum
-        data {
-          id
-          title
-          post {
+        edges {
+          node {
             id
-            voteCount
-            content
+            title
+            post {
+              id
+              voteCount
+              content
+            }
           }
         }
       }
@@ -131,15 +133,22 @@ def try_discuss_api(question_slug, search_query, leetcode_lang_id, session_file)
 
     if resp.status_code == 200:
         data = resp.json()
-        topics = data.get("data", {}).get("questionTopicsList", {}).get("data", [])
+        topics_data = data.get("data", {}).get("questionTopicsList", {})
+        
+        # LeetCode GraphQL occasionally changes between returning `data` and `edges`
+        if "edges" in topics_data:
+            topics = [edge.get("node", {}) for edge in topics_data.get("edges", [])]
+        else:
+            topics = topics_data.get("data", [])
+            
         for topic in topics:
             content = topic.get("post", {}).get("content", "")
             if content:
                 code = extract_code_from_markdown(content, search_query)
                 if code:
-                    logging.info(f"Found solution via API: '{topic.get('title')}' (votes: {topic['post'].get('voteCount', 0)})")
+                    logging.info(f"Found solution via API: '{topic.get('title')}' (votes: {topic.get('post', {}).get('voteCount', 0)})")
                     return code
-        logging.warning("Discuss API: found topics but no extractable Python code.")
+        logging.warning(f"Discuss API: found topics but no extractable {search_query} code.")
     else:
         logging.warning(f"Discuss API status {resp.status_code}")
 
@@ -171,7 +180,15 @@ def try_playwright_scrape(question_slug, search_query, leetcode_lang_id, session
         try:
             logging.info(f"[Playwright] Navigating to: {solutions_url}")
             page.goto(solutions_url, wait_until="domcontentloaded")
-            time.sleep(5)
+            
+            # Wait dynamically up to 15s instead of generic sleep
+            try:
+                page.wait_for_selector('a[href*="/problems/{question_slug}/solutions/"]', timeout=15000)
+            except Exception as e:
+                logging.warning(f"[Playwright] Timeout waiting for solution links: {e}")
+            
+            # Give an extra couple seconds for react to finish rendering inner text
+            time.sleep(2)
 
             # Collect all solution post links
             solution_links = page.locator(f'a[href*="/problems/{question_slug}/solutions/"]').all()
