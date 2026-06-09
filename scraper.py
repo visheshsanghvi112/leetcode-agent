@@ -179,11 +179,12 @@ def try_playwright_scrape(question_slug, search_query, leetcode_lang_id, session
 
         try:
             logging.info(f"[Playwright] Navigating to: {solutions_url}")
-            page.goto(solutions_url, wait_until="domcontentloaded")
+            # Increase timeout to 30 seconds and wait for network to be idle
+            page.goto(solutions_url, wait_until="networkidle", timeout=30000)
             
-            # Wait dynamically up to 15s instead of generic sleep
+            # Wait for solution links with increased timeout (25 seconds)
             try:
-                page.wait_for_selector('a[href*="/problems/{question_slug}/solutions/"]', timeout=15000)
+                page.wait_for_selector('a[href*="/solutions/"]', timeout=25000)
             except Exception as e:
                 logging.warning(f"[Playwright] Timeout waiting for solution links: {e}")
             
@@ -191,7 +192,7 @@ def try_playwright_scrape(question_slug, search_query, leetcode_lang_id, session
             time.sleep(2)
 
             # Collect all solution post links
-            solution_links = page.locator(f'a[href*="/problems/{question_slug}/solutions/"]').all()
+            solution_links = page.locator('a[href*="/solutions/"]').all()
             hrefs = []
             for link in solution_links:
                 href = link.get_attribute("href")
@@ -212,8 +213,13 @@ def try_playwright_scrape(question_slug, search_query, leetcode_lang_id, session
             # Try the top 3 solutions to find one with Python code
             for i, url in enumerate(hrefs[:3]):
                 logging.info(f"[Playwright] Trying solution {i+1}: {url}")
-                page.goto(url, wait_until="domcontentloaded")
-                time.sleep(6)
+                try:
+                    page.goto(url, wait_until="networkidle", timeout=30000)
+                except Exception as e:
+                    logging.warning(f"[Playwright] Error navigating to solution {i+1}: {e}")
+                    continue
+                    
+                time.sleep(3)
 
                 # Get the full page HTML to search for Python code
                 page_content = page.content()
