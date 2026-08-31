@@ -32,6 +32,52 @@ def load_session_data(session_file=SESSION_FILE):
         return {}, None
 
 
+def select_language_in_ui(page, language="python3"):
+    """Switches the Monaco editor language in the LeetCode UI."""
+    import re
+    lang_labels = {
+        "python3": ["Python3", "Python 3", "python3"],
+        "python": ["Python", "python"],
+        "javascript": ["JavaScript", "javascript", "JS"],
+        "typescript": ["TypeScript", "typescript", "TS"],
+        "mysql": ["MySQL", "MySQL"],
+        "pandas": ["Pandas", "pandas"],
+    }
+    targets = lang_labels.get(language.lower(), ["Python3", "Python"])
+
+    try:
+        # Check current language button
+        lang_btn = page.locator("button:has-text('C++'), button:has-text('Java'), button:has-text('Python'), button:has-text('JavaScript'), button:has-text('TypeScript'), button:has-text('C#'), button:has-text('Go'), button:has-text('Rust'), button:has-text('MySQL'), button:has-text('Pandas')").first
+        if lang_btn.is_visible():
+            current_lang = lang_btn.inner_text().strip()
+            logging.info(f"Current editor language: '{current_lang}'")
+            if any(t.lower() in current_lang.lower() for t in targets):
+                logging.info(f"Language is already set to {current_lang}.")
+                return True
+            lang_btn.click()
+            page.wait_for_timeout(800)
+
+            # Click target language option in dropdown
+            for target in targets:
+                opt = page.locator(f"[role='option']:has-text('{target}'), li:has-text('{target}'), div:has-text('{target}')").filter(has_text=re.compile(rf"^{target}$", re.I)).first
+                if opt.is_visible():
+                    opt.click()
+                    page.wait_for_timeout(800)
+                    logging.info(f"Switched editor language to '{target}'.")
+                    return True
+                # Broader locator fallback
+                opt = page.locator(f"text={target}").first
+                if opt.is_visible():
+                    opt.click()
+                    page.wait_for_timeout(800)
+                    logging.info(f"Switched editor language to '{target}'.")
+                    return True
+    except Exception as e:
+        logging.warning(f"Could not switch language via UI: {e}")
+    return False
+
+
+
 def submit_solution(question_slug, code, language="python3", question_id=None, session_file=SESSION_FILE):
     """
     Submits the solution to LeetCode using Playwright with multi-tier fallback.
@@ -115,68 +161,49 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                 logging.warning("Cloudflare challenge page detected, waiting 5 seconds for clearance...")
                 page.wait_for_timeout(5000)
 
-            # -------------------------------------------------------------
-            # Strategy 1: In-Browser Evaluated Fetch (Fastest & Most Reliable)
-            # -------------------------------------------------------------
-            if question_id:
-                logging.info("Executing Strategy 1: In-Browser Evaluated API Submission...")
+            # Switch language in the UI to match the solution language
+            select_language_in_ui(page, language)
+
+            # Setup network response interceptor to capture submission verdicts
+            submission_network_result = {"submission_id": None, "verdict": None}
+
+            def handle_response(response):
                 try:
-                    submit_response = page.evaluate(
-                        """
-                        async ([slug, qId, codeStr, langStr, csrf]) => {
-                            // Extract csrf from document.cookie if not passed
-                            let token = csrf;
-                            if (!token) {
-                                const match = document.cookie.match(/csrftoken=([^;]+)/);
-                                if (match) token = match[1];
-                            }
-                            try {
-                                const res = await fetch(`/problems/${slug}/submit/`, {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                        "x-csrftoken": token,
-                                        "x-requested-with": "XMLHttpRequest"
-                                    },
-                                    body: JSON.stringify({
-                                        lang: langStr,
-                                        question_id: String(qId),
-                                        typed_code: codeStr
-                                    })
-                                });
-                                const json = await res.json();
-                                return { status: res.status, data: json };
-                            } catch (err) {
-                                return { error: err.toString() };
-                            }
-                        }
-                        """,
-                        [question_slug, question_id, code, language, csrf_token],
-                    )
+                    url = response.url
+                    if "/submit/" in url and response.request.method == "POST":
+                        try:
+                            json_data = response.json()
+                            sub_id = json_data.get("submission_id")
+                            if sub_id:
+                                submission_network_result["submission_id"] = sub_id
+                                logging.info(f"Captured submission ID from network: #{sub_id}")
+                        except Exception:
+                            pass
+                    elif "/check/" in url:
+                        try:
+                            check_data = response.json()
+                            if check_data.get("state") == "SUCCESS":
+                                status_display = check_data.get("status_display", "Accepted")
+                                runtime = check_data.get("status_runtime", "")
+                                memory = check_data.get("status_memory", "")
+                                verdict_parts = [status_display]
+                                if runtime and runtime != "N/A":
+                                    verdict_parts.append(f"Runtime: {runtime}")
+                                if memory and memory != "N/A":
+                                    verdict_parts.append(f"Memory: {memory}")
+                                submission_network_result["verdict"] = " | ".join(verdict_parts)
+                                logging.info(f"Captured verdict from network: {submission_network_result['verdict']}")
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
-                    if submit_response and "data" in submit_response:
-                        data = submit_response["data"]
-                        submission_id = data.get("submission_id")
-
-                        if submission_id:
-                            logging.info(f"Submission accepted by LeetCode! Submission ID: {submission_id}")
-                            # Poll for verification check
-                            verdict = poll_submission_verdict(page, submission_id)
-                            save_refreshed_session()
-                            if verdict:
-                                browser.close()
-                                return verdict
-                        elif "error" in data:
-                            logging.warning(f"Strategy 1 API returned error message: {data['error']}")
-                        else:
-                            logging.warning(f"Strategy 1 response: {data}")
-                except Exception as e:
-                    logging.warning(f"Strategy 1 execution failed: {e}")
+            page.on("response", handle_response)
 
             # -------------------------------------------------------------
             # Strategy 2: Direct Monaco Editor JS API Injection + Click Submit
             # -------------------------------------------------------------
-            logging.info("Executing Strategy 2: Monaco Editor API Injection...")
+            logging.info("Executing Monaco Editor API Injection...")
             monaco_set = page.evaluate(
                 """
                 ([codeStr]) => {
@@ -198,9 +225,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             if monaco_set:
                 logging.info("Successfully set code via Monaco JS API!")
             else:
-                # -------------------------------------------------------------
                 # Strategy 3: Simulated Mouse & Keyboard Paste
-                # -------------------------------------------------------------
                 logging.info("Executing Strategy 3: DOM Keyboard Selection & Paste...")
                 try:
                     editor = page.locator(".monaco-editor, [data-track-load='code_editor']").first
@@ -216,20 +241,24 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                     logging.warning(f"Strategy 3 editor interaction failed: {e}")
 
             # Click the Submit button
+            page.wait_for_timeout(1000)
             logging.info("Clicking Submit button...")
             submit_clicked = False
             submit_selectors = [
-                'button[data-e2e-locator="console-submit-button"]',
                 'button:has-text("Submit")',
+                'button[data-e2e-locator="console-submit-button"]',
                 'button[data-cy="submit-code-btn"]',
             ]
             for sel in submit_selectors:
                 try:
-                    btn = page.locator(sel).first
-                    if btn.is_visible():
-                        btn.click()
-                        submit_clicked = True
-                        logging.info(f"Clicked submit button using selector '{sel}'.")
+                    btns = page.locator(sel).all()
+                    for btn in btns:
+                        if btn.is_visible():
+                            btn.click()
+                            submit_clicked = True
+                            logging.info(f"Clicked submit button using selector '{sel}'.")
+                            break
+                    if submit_clicked:
                         break
                 except Exception:
                     continue
@@ -237,25 +266,40 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             if not submit_clicked:
                 logging.warning("Could not find visible Submit button in DOM.")
 
-            # Wait for submission result container or response
-            logging.info("Waiting for submission verdict element in DOM...")
-            try:
-                page.locator('[data-e2e-locator="submission-result"], [data-track-load="submission_result"]').first.wait_for(
-                    state="visible", timeout=20000
-                )
-                result_text = page.locator('[data-e2e-locator="submission-result"]').inner_text()
-                logging.info(f"DOM Submission Result: {result_text}")
-                save_refreshed_session()
-                browser.close()
-                return result_text.strip()
-            except Exception as e:
-                logging.warning(f"Timeout waiting for DOM result container: {e}")
+            # Wait for network response or DOM result container
+            logging.info("Waiting for submission verdict from network / DOM...")
+            for _ in range(15):
+                page.wait_for_timeout(2000)
+                if submission_network_result.get("verdict"):
+                    final_verdict = submission_network_result["verdict"]
+                    save_refreshed_session()
+                    browser.close()
+                    return final_verdict
+                if submission_network_result.get("submission_id"):
+                    sub_id = submission_network_result["submission_id"]
+                    verdict = poll_submission_verdict(page, sub_id)
+                    save_refreshed_session()
+                    browser.close()
+                    return verdict
 
-            # Capture failure screenshot for debugging
+            # Check DOM for submission result
+            try:
+                result_elem = page.locator('[data-e2e-locator="submission-result"], [data-track-load="submission_result"]').first
+                if result_elem.is_visible():
+                    result_text = result_elem.inner_text().strip()
+                    logging.info(f"DOM Submission Result: {result_text}")
+                    save_refreshed_session()
+                    browser.close()
+                    return result_text
+            except Exception:
+                pass
+
+            # Capture screenshot
             page.screenshot(path="debug_submission_failure.png")
             save_refreshed_session()
             browser.close()
             return "Submission Sent (Check LeetCode Profile)"
+
 
         except Exception as e:
             logging.error(f"Playwright submission encountered exception: {e}")
