@@ -102,15 +102,31 @@ def main():
     print("=" * 65)
     print()
 
-    session_input = input("Paste your LEETCODE_SESSION value (or full cookie string) here:\n> ").strip()
+    session_input = input("Paste your LEETCODE_SESSION value here:\n> ").strip()
+
+    if "__stripe_mid" in session_input and "LEETCODE_SESSION" not in session_input:
+        print()
+        print("=" * 65)
+        print("⚠️ NOTICE: You pasted 'document.cookie'!")
+        print("Chrome blocks 'document.cookie' from seeing LEETCODE_SESSION.")
+        print()
+        print("To get LEETCODE_SESSION:")
+        print("  1. In DevTools, click the 'Application' tab at the top (next to Console/Network)")
+        print("  2. In the left sidebar: Cookies -> https://leetcode.com")
+        print("  3. Find the row named 'LEETCODE_SESSION'")
+        print("  4. Double-click its 'Value' column and copy it (<Cmd+C>)")
+        print("=" * 65)
+        print()
+        session_input = input("Now paste the actual 'LEETCODE_SESSION' value:\n> ").strip()
 
     cookies = parse_raw_input(session_input)
     leetcode_session = cookies.get("LEETCODE_SESSION")
 
-    # If user only pasted the session value, ask for csrftoken or use placeholder
-    if not leetcode_session and len(session_input) > 20:
+    # If user pasted the raw session token directly
+    if not leetcode_session and len(session_input) > 20 and not session_input.startswith("__stripe"):
         leetcode_session = session_input
         cookies["LEETCODE_SESSION"] = leetcode_session
+
 
     if not leetcode_session:
         print()
