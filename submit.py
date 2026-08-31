@@ -52,7 +52,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
         if details:
             question_id = details.get("questionId")
 
-    problem_url = f"https://leetcode.com/problems/{question_slug}/description/"
+    problem_url = f"https://leetcode.com/problems/{question_slug}/"
     logging.info(f"Preparing Playwright submission for '{question_slug}' (Question ID: {question_id})...")
 
     def save_refreshed_session():
@@ -85,9 +85,17 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
         context = browser.new_context(**context_args)
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
+        # Explicitly ensure cookies are registered for leetcode.com
+        if storage_state and "cookies" in storage_state:
+            try:
+                context.add_cookies(storage_state["cookies"])
+            except Exception as e:
+                logging.debug(f"Note on adding cookies: {e}")
+
         page = context.new_page()
 
         try:
+
             logging.info(f"Navigating to problem page: {problem_url}")
             page.goto(problem_url, wait_until="domcontentloaded", timeout=30000)
 
