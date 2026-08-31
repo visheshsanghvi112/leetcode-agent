@@ -119,28 +119,42 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             ],
         )
 
-        context_args = {
-            "user_agent": DEFAULT_USER_AGENT,
-            "viewport": {"width": 1920, "height": 1080},
-            "device_scale_factor": 1,
-            "permissions": ["clipboard-read", "clipboard-write"],
-        }
-        if os.path.exists(session_file):
-            context_args["storage_state"] = session_file
-
-        context = browser.new_context(**context_args)
+        context = browser.new_context(
+            user_agent=DEFAULT_USER_AGENT,
+            viewport={"width": 1920, "height": 1080},
+            device_scale_factor=1,
+            permissions=["clipboard-read", "clipboard-write"],
+        )
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
-        # Explicitly ensure cookies are registered for leetcode.com
+        # Explicitly build and register well-formed cookies for Playwright
         if storage_state and "cookies" in storage_state:
-            try:
-                context.add_cookies(storage_state["cookies"])
-            except Exception as e:
-                logging.debug(f"Note on adding cookies: {e}")
+            cookies_to_add = []
+            for c in storage_state["cookies"]:
+                c_name = c.get("name")
+                c_val = c.get("value")
+                if c_name and c_val:
+                    cookies_to_add.append({
+                        "name": c_name,
+                        "value": c_val,
+                        "domain": ".leetcode.com",
+                        "path": "/",
+                        "httpOnly": c.get("httpOnly", True if c_name == "LEETCODE_SESSION" else False),
+                        "secure": True,
+                        "sameSite": "Lax",
+                        "expires": 2147483647,
+                    })
+            if cookies_to_add:
+                try:
+                    context.add_cookies(cookies_to_add)
+                    logging.info(f"Loaded {len(cookies_to_add)} authentication cookies into browser context.")
+                except Exception as e:
+                    logging.warning(f"Error adding cookies to context: {e}")
 
         page = context.new_page()
 
         try:
+
 
             logging.info(f"Navigating to problem page: {problem_url}")
             page.goto(problem_url, wait_until="domcontentloaded", timeout=30000)
