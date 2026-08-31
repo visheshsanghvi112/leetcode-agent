@@ -112,13 +112,20 @@ def check_user_session(cookies):
       }
     }
     """
-    csrf = cookies.get("csrftoken", "") if isinstance(cookies, dict) else ""
+    if isinstance(cookies, list):
+        cookie_dict = {c["name"]: c["value"] for c in cookies if isinstance(c, dict) and "name" in c and "value" in c}
+    elif isinstance(cookies, dict):
+        cookie_dict = cookies
+    else:
+        cookie_dict = {}
+
+    csrf = cookie_dict.get("csrftoken", "")
     headers = {
         "x-csrftoken": csrf,
         "Referer": "https://leetcode.com/",
         "Origin": "https://leetcode.com"
     }
-    data = post_graphql(query, cookies=cookies, headers=headers)
+    data = post_graphql(query, cookies=cookie_dict, headers=headers)
     if data:
         user_status = data.get("data", {}).get("userStatus", {})
         return {
@@ -127,6 +134,7 @@ def check_user_session(cookies):
             "real_name": user_status.get("realName", ""),
         }
     return {"is_signed_in": False, "username": "", "real_name": ""}
+
 
 
 
