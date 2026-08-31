@@ -1,16 +1,8 @@
 """
 Login Setup Script for LeetCode Agent.
 
-Simplest approach: copy the raw cookie string from Chrome Console.
-
-Steps:
-  1. Open Chrome and go to https://leetcode.com (make sure you're logged in)
-  2. Press F12 to open DevTools
-  3. Click the "Console" tab
-  4. Type:  document.cookie
-  5. Press Enter
-  6. Right-click the output string → Copy string contents
-  7. Run this script and paste it when asked
+LeetCode marks `LEETCODE_SESSION` as HttpOnly, so it cannot be read via document.cookie.
+You can get it directly from Chrome DevTools Application tab in 10 seconds.
 """
 import json
 import re
@@ -20,17 +12,6 @@ import urllib.error
 SESSION_FILE = "leetcode_session.json"
 LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql/"
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-
-
-def parse_cookie_string(cookie_string):
-    """Parses a raw document.cookie string into individual cookie dicts."""
-    cookies = {}
-    for pair in cookie_string.split(";"):
-        pair = pair.strip()
-        if "=" in pair:
-            name, value = pair.split("=", 1)
-            cookies[name.strip()] = value.strip()
-    return cookies
 
 
 def verify_leetcode_cookies(cookies):
@@ -67,67 +48,96 @@ def verify_leetcode_cookies(cookies):
         return {"is_signed_in": False, "username": "", "error": str(e)}
 
 
+def parse_raw_input(raw_text):
+    """Intelligently parses cookies whether pasted as key=value pairs, raw session value, or JSON."""
+    raw_text = raw_text.strip()
+    # Remove quotes
+    if (raw_text.startswith('"') and raw_text.endswith('"')) or (raw_text.startswith("'") and raw_text.endswith("'")):
+        raw_text = raw_text[1:-1].strip()
+
+    cookies = {}
+
+    # Check if user pasted JSON
+    if raw_text.startswith("{"):
+        try:
+            data = json.loads(raw_text)
+            if "cookies" in data:
+                for c in data["cookies"]:
+                    cookies[c["name"]] = c["value"]
+            elif isinstance(data, dict):
+                cookies.update(data)
+            return cookies
+        except Exception:
+            pass
+
+    # Check if user pasted key=value pairs (e.g. from document.cookie or headers)
+    if "=" in raw_text:
+        for pair in raw_text.split(";"):
+            pair = pair.strip()
+            if "=" in pair:
+                name, val = pair.split("=", 1)
+                cookies[name.strip()] = val.strip()
+
+    # If it's a standalone session string (starts with eyJ or similar long base64 string)
+    if not cookies.get("LEETCODE_SESSION") and len(raw_text) > 40 and " " not in raw_text:
+        cookies["LEETCODE_SESSION"] = raw_text
+
+    return cookies
+
+
 def main():
-    print("=" * 60)
-    print("  LeetCode Session Setup")
-    print("=" * 60)
+    print("=" * 65)
+    print("           LeetCode Session Setup (Fast & Easy)")
+    print("=" * 65)
     print()
-    print("  Step 1: Open Chrome -> go to https://leetcode.com")
-    print("          (make sure you are LOGGED IN)")
+    print("  Because LEETCODE_SESSION is HttpOnly, Chrome hides it from 'document.cookie'.")
+    print("  Here is how to get it in 10 seconds from DevTools:")
     print()
-    print("  Step 2: Press F12 to open DevTools")
+    print("  1. Open Chrome and go to: https://leetcode.com (make sure you are LOGGED IN)")
+    print("  2. Press F12 (or right-click anywhere -> Inspect)")
+    print("  3. In the top bar of DevTools, click 'Application' (click '>>' if hidden)")
+    print("  4. In the left sidebar: Expand 'Storage' -> Expand 'Cookies' -> click 'https://leetcode.com'")
+    print("  5. In the table, find 'LEETCODE_SESSION' and double-click its 'Value' column -> Copy it!")
     print()
-    print("  Step 3: Click the 'Console' tab")
-    print()
-    print("  Step 4: Click in the console area, type this and press Enter:")
-    print()
-    print("          document.cookie")
-    print()
-    print("  Step 5: You'll see a long string starting with quotes.")
-    print("          Right-click on it -> 'Copy string contents'")
-    print()
-    print("  Step 6: Paste it below when prompted.")
-    print()
-    print("=" * 60)
+    print("=" * 65)
     print()
 
-    raw_cookies = input("Paste the cookie string here: ").strip()
+    session_input = input("Paste your LEETCODE_SESSION value (or full cookie string) here:\n> ").strip()
 
-    # Remove surrounding quotes if user copied with them
-    if raw_cookies.startswith('"') and raw_cookies.endswith('"'):
-        raw_cookies = raw_cookies[1:-1]
-    if raw_cookies.startswith("'") and raw_cookies.endswith("'"):
-        raw_cookies = raw_cookies[1:-1]
-
-    if not raw_cookies:
-        print("ERROR: Cookie string cannot be empty.")
-        return
-
-    cookies = parse_cookie_string(raw_cookies)
-
+    cookies = parse_raw_input(session_input)
     leetcode_session = cookies.get("LEETCODE_SESSION")
-    csrf_token = cookies.get("csrftoken")
+
+    # If user only pasted the session value, ask for csrftoken or use placeholder
+    if not leetcode_session and len(session_input) > 20:
+        leetcode_session = session_input
+        cookies["LEETCODE_SESSION"] = leetcode_session
 
     if not leetcode_session:
         print()
-        print("ERROR: Could not find LEETCODE_SESSION in the cookie string.")
-        print("Make sure you are logged in to LeetCode before copying cookies.")
+        print("❌ ERROR: Could not find LEETCODE_SESSION.")
+        print("Please follow steps 1-5 above to copy the 'LEETCODE_SESSION' value from DevTools -> Application -> Cookies.")
         return
 
+    csrf_token = cookies.get("csrftoken")
     if not csrf_token:
         print()
-        print("WARNING: csrftoken not found. Will try without it.")
-        csrf_token = ""
+        csrf_input = input("Paste your 'csrftoken' value (optional, press Enter to skip):\n> ").strip()
+        if csrf_input:
+            csrf_cookies = parse_raw_input(csrf_input)
+            csrf_token = csrf_cookies.get("csrftoken", csrf_input)
+            if csrf_token:
+                cookies["csrftoken"] = csrf_token
 
     # Verify session with LeetCode GraphQL
-    print("\nVerifying session with LeetCode...")
+    print("\nVerifying session credentials with LeetCode...")
     auth_status = verify_leetcode_cookies(cookies)
     if auth_status.get("is_signed_in"):
         print(f"✅ SUCCESS: Verified logged-in account: '{auth_status.get('username')}'")
     else:
-        print("⚠️ WARNING: LeetCode API did not confirm active login. Please verify you copied all cookies while logged in.")
+        print("⚠️ WARNING: LeetCode API could not confirm login status.")
+        print("Please verify you copied the full value while actively logged in on leetcode.com.")
 
-    # Build Playwright storage state
+    # Build Playwright storage state format
     cookie_list = [
         {
             "name": "LEETCODE_SESSION",
@@ -160,26 +170,25 @@ def main():
         json.dump(storage_state, f, indent=2)
 
     print()
-    print("=" * 60)
-    print(f"  SUCCESS! Session saved to: {SESSION_FILE}")
+    print("=" * 65)
+    print(f"  🎉 SUCCESS! Session saved to: {SESSION_FILE}")
+    print("=" * 65)
     print()
-    print("  Found cookies:")
-    print(f"    LEETCODE_SESSION: {leetcode_session[:20]}...{leetcode_session[-10:]}")
+    print(f"  • LEETCODE_SESSION: {leetcode_session[:18]}...{leetcode_session[-10:]}")
     if csrf_token:
-        print(f"    csrftoken:        {csrf_token[:20]}...")
+        print(f"  • csrftoken:        {csrf_token[:18]}...")
     print()
-    print("  For GitHub Actions setup:")
-    print("  1. Open leetcode_session.json and copy ALL its contents")
-    print("  2. GitHub repo -> Settings -> Secrets and variables -> Actions")
-    print("  3. Create/update secret: LEETCODE_SESSION_JSON")
-    print("  4. Paste the file contents and save")
+    print("  Next steps for GitHub Actions:")
+    print("  1. Open leetcode_session.json in your editor and copy ALL its contents")
+    print("  2. Go to your GitHub repo -> Settings -> Secrets and variables -> Actions")
+    print("  3. Update/Create the secret: LEETCODE_SESSION_JSON")
+    print("  4. Paste the JSON contents and click Save")
     print()
-    print("  NOTE: Cookies expire periodically (~2 weeks).")
-    print("  Re-run this script if the bot stops working.")
-    print("=" * 60)
+    print("=" * 65)
 
 
 if __name__ == "__main__":
     main()
+
 
 
