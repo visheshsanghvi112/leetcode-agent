@@ -394,6 +394,10 @@ def clean_solution_code(raw_code, language="python"):
     if not raw_code:
         return None
 
+    # Unescape literal escaped newlines/tabs if returned by GraphQL json
+    if "\\n" in raw_code:
+        raw_code = raw_code.replace("\\n", "\n").replace("\\t", "\t").replace('\\"', '"')
+
     # Decode HTML entities
     raw_code = (
         raw_code.replace("&lt;", "<")
@@ -440,6 +444,7 @@ def clean_solution_code(raw_code, language="python"):
         return match.group(1).strip()
 
     return raw_code.strip()
+
 
 
 
