@@ -7,30 +7,26 @@
 
 class Solution:
     def nodesBetweenCriticalPoints(self, head: ListNode) -> List[int]:
-        node_position_counter = 0
+        node_index_counter = 0
         critical_point_indices = []
-        value_of_previous_node = head.val
-        
+        previous_node_value = head.val
+
         while head.next:
-            current_node_value = head.val
-            value_of_next_node = head.next.val
+            if (previous_node_value - head.val) * (head.val - head.next.val) < 0:
+                critical_point_indices.append(node_index_counter)
 
-            if (value_of_previous_node - current_node_value) * (current_node_value - value_of_next_node) < 0:
-                critical_point_indices.append(node_position_counter)
-            
-            value_of_previous_node = current_node_value
+            previous_node_value = head.val
             head = head.next
-            node_position_counter += 1
+            node_index_counter += 1
 
-        number_of_critical_points = len(critical_point_indices)
-        
-        if number_of_critical_points < 2:
+        num_critical_points = len(critical_point_indices)
+        if num_critical_points < 2:
             return [-1, -1]
 
-        minimum_distance_between_critical_points = min(
-            critical_point_indices[i] - critical_point_indices[i-1] 
-            for i in range(1, number_of_critical_points)
+        min_distance_found = min(
+            critical_point_indices[idx] - critical_point_indices[idx - 1]
+            for idx in range(1, num_critical_points)
         )
-        maximum_distance_between_critical_points = critical_point_indices[-1] - critical_point_indices[0]
+        max_distance_found = critical_point_indices[-1] - critical_point_indices[0]
 
-        return [minimum_distance_between_critical_points, maximum_distance_between_critical_points]
+        return [min_distance_found, max_distance_found]
