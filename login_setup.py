@@ -15,6 +15,7 @@ Steps:
 import json
 import re
 import logging
+from leetcode_api import check_user_session
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -84,6 +85,14 @@ def main():
         print("WARNING: csrftoken not found. Will try without it.")
         csrf_token = ""
 
+    # Verify session with LeetCode GraphQL
+    print("\nVerifying session with LeetCode...")
+    auth_status = check_user_session(cookies)
+    if auth_status.get("is_signed_in"):
+        print(f"✅ SUCCESS: Verified logged-in account: '{auth_status.get('username')}'")
+    else:
+        print("⚠️ WARNING: LeetCode API did not confirm active login. Please verify you copied all cookies while logged in.")
+
     # Build Playwright storage state
     cookie_list = [
         {
@@ -127,8 +136,8 @@ def main():
     print()
     print("  For GitHub Actions setup:")
     print("  1. Open leetcode_session.json and copy ALL its contents")
-    print("  2. GitHub repo -> Settings -> Secrets -> Actions")
-    print("  3. Create secret: LEETCODE_SESSION_JSON")
+    print("  2. GitHub repo -> Settings -> Secrets and variables -> Actions")
+    print("  3. Create/update secret: LEETCODE_SESSION_JSON")
     print("  4. Paste the file contents and save")
     print()
     print("  NOTE: Cookies expire periodically (~2 weeks).")
@@ -138,3 +147,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
