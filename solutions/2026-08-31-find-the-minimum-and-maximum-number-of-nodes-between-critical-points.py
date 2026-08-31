@@ -7,31 +7,30 @@
 
 class Solution:
     def nodesBetweenCriticalPoints(self, head: ListNode) -> List[int]:
-        current_index = 0
-        critical_point_indices = []
-        previous_value = head.val
+        currentNodeIndex = 0
+        criticalPointIndices = []
+        previousNodeValue = head.val
+        currentListNode = head
 
-        while head.next:
-            current_value = head.val
-            next_value = head.next.val
+        while currentListNode.next:
+            # A critical point is a local extremum (peak or valley).
+            # This condition checks if the current node's value is
+            # strictly greater than both its predecessor and successor (peak),
+            # or strictly less than both (valley).
+            # The product (A-B)*(B-C) < 0 holds if (A>B and B<C) or (A<B and B>C).
+            if (previousNodeValue - currentListNode.val) * (currentListNode.val - currentListNode.next.val) < 0:
+                criticalPointIndices.append(currentNodeIndex)
 
-            if (previous_value - current_value) * (current_value - next_value) < 0:
-                critical_point_indices.append(current_index)
+            previousNodeValue = currentListNode.val
+            currentListNode = currentListNode.next
+            currentNodeIndex += 1
 
-            previous_value = current_value
-            head = head.next
-            current_index += 1
-
-        count_critical_points = len(critical_point_indices)
-
-        if count_critical_points < 2:
+        numCriticalPointsFound = len(criticalPointIndices)
+        if numCriticalPointsFound < 2:
             return [-1, -1]
 
-        min_dist_critical = float('inf')
-        for idx in range(1, count_critical_points):
-            consecutive_dist = critical_point_indices[idx] - critical_point_indices[idx - 1]
-            min_dist_critical = min(min_dist_critical, consecutive_dist)
+        minDistanceBetweenAdjacent = min(criticalPointIndices[i] - criticalPointIndices[i-1]
+                                         for i in range(1, numCriticalPointsFound))
+        maxDistanceBetweenExtremes = criticalPointIndices[-1] - criticalPointIndices[0]
 
-        max_dist_critical = critical_point_indices[-1] - critical_point_indices[0]
-
-        return [int(min_dist_critical), max_dist_critical]
+        return [minDistanceBetweenAdjacent, maxDistanceBetweenExtremes]
