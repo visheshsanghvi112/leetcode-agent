@@ -55,6 +55,13 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
     problem_url = f"https://leetcode.com/problems/{question_slug}/description/"
     logging.info(f"Preparing Playwright submission for '{question_slug}' (Question ID: {question_id})...")
 
+    def save_refreshed_session():
+        try:
+            context.storage_state(path=session_file)
+            logging.info("Refreshed and saved updated session state to session file.")
+        except Exception as err:
+            logging.debug(f"Could not update session file: {err}")
+
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
@@ -147,6 +154,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                             logging.info(f"Submission accepted by LeetCode! Submission ID: {submission_id}")
                             # Poll for verification check
                             verdict = poll_submission_verdict(page, submission_id)
+                            save_refreshed_session()
                             if verdict:
                                 browser.close()
                                 return verdict
@@ -229,6 +237,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                 )
                 result_text = page.locator('[data-e2e-locator="submission-result"]').inner_text()
                 logging.info(f"DOM Submission Result: {result_text}")
+                save_refreshed_session()
                 browser.close()
                 return result_text.strip()
             except Exception as e:
@@ -236,6 +245,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
 
             # Capture failure screenshot for debugging
             page.screenshot(path="debug_submission_failure.png")
+            save_refreshed_session()
             browser.close()
             return "Submission Sent (Check LeetCode Profile)"
 
@@ -245,8 +255,10 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                 page.screenshot(path="debug_submission_error.png")
             except Exception:
                 pass
+            save_refreshed_session()
             browser.close()
             return f"Error interacting with browser: {e}"
+
 
 
 def poll_submission_verdict(page, submission_id, max_attempts=15):

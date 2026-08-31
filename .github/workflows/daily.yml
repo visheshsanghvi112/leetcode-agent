@@ -33,7 +33,17 @@ jobs:
           playwright install chromium
 
 
-      - name: Create session file from secret
+      - name: Restore Rolling Session Cache
+        uses: actions/cache@v4
+        id: session-cache
+        with:
+          path: leetcode_session.json
+          key: leetcode-session-${{ github.run_id }}
+          restore-keys: |
+            leetcode-session-
+
+      - name: Create session file from secret (if cache miss or expired)
+        if: steps.session-cache.outputs.cache-hit != 'true'
         env:
           LEETCODE_SESSION_JSON: ${{ secrets.LEETCODE_SESSION_JSON }}
         run: |
@@ -44,6 +54,7 @@ jobs:
           fi
           printf '%s' "$LEETCODE_SESSION_JSON" > leetcode_session.json
           python -m json.tool leetcode_session.json >/dev/null
+
 
       - name: Random daily delay (humanize)
         if: github.event_name == 'schedule'

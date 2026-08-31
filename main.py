@@ -91,6 +91,8 @@ def main():
     else:
         logging.warning("⚠️ Session cookie is not logged in or has expired! Submissions may require session renewal.")
         logging.warning("Run 'python login_setup.py' to update LEETCODE_SESSION_JSON if submissions fail.")
+        from notifier import send_session_expired_alert
+        send_session_expired_alert(username=auth_status.get("username"))
 
     # Step 1 & 2: Fetch daily problem + get solution
     result = solve_daily()
@@ -130,7 +132,9 @@ def main():
     )
 
     # Step 5: Send Notification
-    send_telegram_notification(result['title'], result['difficulty'], submission_result)
+    problem_url = f"https://leetcode.com/problems/{result['slug']}/"
+    send_telegram_notification(result['title'], result['difficulty'], submission_result, problem_url=problem_url)
+
 
     logging.info("=" * 60)
     logging.info("Daily challenge run complete!")
