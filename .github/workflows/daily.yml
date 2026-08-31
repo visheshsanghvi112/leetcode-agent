@@ -38,17 +38,7 @@ jobs:
           playwright install chromium
 
 
-      - name: Restore Rolling Session Cache
-        uses: actions/cache@v4
-        id: session-cache
-        with:
-          path: leetcode_session.json
-          key: leetcode-session-${{ github.run_id }}
-          restore-keys: |
-            leetcode-session-
-
-      - name: Create session file from secret (if cache miss or expired)
-        if: steps.session-cache.outputs.cache-hit != 'true'
+      - name: Setup LeetCode Session from Secret
         env:
           LEETCODE_SESSION_JSON: ${{ secrets.LEETCODE_SESSION_JSON }}
         run: |
@@ -59,8 +49,10 @@ jobs:
           fi
           printf '%s' "$LEETCODE_SESSION_JSON" > leetcode_session.json
           python -m json.tool leetcode_session.json >/dev/null
+          echo "Successfully initialized leetcode_session.json from secret."
 
       - name: Run LeetCode Agent
+
 
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
