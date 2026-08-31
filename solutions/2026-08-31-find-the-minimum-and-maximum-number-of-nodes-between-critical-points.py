@@ -10,23 +10,21 @@ class Solution:
         node_index_counter = 0
         critical_point_indices = []
         previous_node_value = head.val
+        current_list_node = head
 
-        while head.next:
-            if (previous_node_value - head.val) * (head.val - head.next.val) < 0:
+        while current_list_node.next:
+            if (previous_node_value - current_list_node.val) * (current_list_node.val - current_list_node.next.val) < 0:
                 critical_point_indices.append(node_index_counter)
 
-            previous_node_value = head.val
-            head = head.next
+            previous_node_value = current_list_node.val
+            current_list_node = current_list_node.next
             node_index_counter += 1
 
         num_critical_points = len(critical_point_indices)
         if num_critical_points < 2:
             return [-1, -1]
 
-        min_distance_found = min(
-            critical_point_indices[idx] - critical_point_indices[idx - 1]
-            for idx in range(1, num_critical_points)
-        )
-        max_distance_found = critical_point_indices[-1] - critical_point_indices[0]
+        minimum_distance = min((critical_point_indices[idx] - critical_point_indices[idx-1] for idx in range(1, num_critical_points)))
+        maximum_distance = critical_point_indices[-1] - critical_point_indices[0]
 
-        return [min_distance_found, max_distance_found]
+        return [minimum_distance, maximum_distance]
