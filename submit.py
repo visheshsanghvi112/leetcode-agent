@@ -272,7 +272,6 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             # Strategy 2: Direct Monaco Editor JS API Injection + Click Submit
             # -------------------------------------------------------------
             logging.info("Executing Monaco Editor API Injection...")
-
             monaco_set = page.evaluate(
                 """
                 ([codeStr]) => {
@@ -280,7 +279,14 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                         if (window.monaco && window.monaco.editor) {
                             const models = window.monaco.editor.getModels();
                             if (models.length > 0) {
-                                models[0].setValue(codeStr);
+                                const model = models[0];
+                                model.setValue(codeStr);
+                                try {
+                                    model.pushEditOperations([], [{
+                                        range: model.getFullModelRange(),
+                                        text: codeStr
+                                    }], () => null);
+                                } catch (e) {}
                                 return true;
                             }
                         }
@@ -293,29 +299,26 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
 
             if monaco_set:
                 logging.info("Successfully set code via Monaco JS API!")
-            else:
-                # Strategy 3: Simulated Mouse & Keyboard Paste
-                logging.info("Executing Strategy 3: DOM Keyboard Selection & Paste...")
-                try:
-                    editor = page.locator(".monaco-editor, [data-track-load='code_editor']").first
-                    editor.wait_for(state="visible", timeout=8000)
-                    editor.click()
-                    modifier = "Meta" if "Mac" in page.evaluate("navigator.platform") else "Control"
-                    page.keyboard.press(f"{modifier}+A")
+            
+            # Click inside the Monaco editor and dispatch a keystroke to force React state sync
+            try:
+                editor_elem = page.locator(".monaco-editor, [data-track-load='code_editor'], .view-lines").first
+                if editor_elem.is_visible():
+                    editor_elem.click()
+                    page.keyboard.press("End")
+                    page.keyboard.type(" ")
                     page.keyboard.press("Backspace")
-                    page.evaluate("([code]) => navigator.clipboard.writeText(code)", [code])
-                    page.keyboard.press(f"{modifier}+V")
-                    page.wait_for_timeout(1000)
-                except Exception as e:
-                    logging.warning(f"Strategy 3 editor interaction failed: {e}")
+                    page.wait_for_timeout(800)
+            except Exception as e:
+                logging.debug(f"Note on typing in editor: {e}")
 
             # Click the Submit button
             page.wait_for_timeout(1000)
             logging.info("Clicking Submit button...")
             submit_clicked = False
             submit_selectors = [
-                'button:has-text("Submit")',
                 'button[data-e2e-locator="console-submit-button"]',
+                'button:has-text("Submit")',
                 'button[data-cy="submit-code-btn"]',
             ]
             for sel in submit_selectors:
@@ -323,7 +326,10 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                     btns = page.locator(sel).all()
                     for btn in btns:
                         if btn.is_visible():
-                            btn.click()
+                            # Click with mouse and also dispatch click
+                            btn.scroll_into_view_if_needed()
+                            btn.click(force=True)
+                            btn.dispatch_event("click")
                             submit_clicked = True
                             logging.info(f"Clicked submit button using selector '{sel}'.")
                             break
@@ -368,6 +374,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             save_refreshed_session()
             browser.close()
             return "Submission Sent (Check LeetCode Profile)"
+
 
 
         except Exception as e:
