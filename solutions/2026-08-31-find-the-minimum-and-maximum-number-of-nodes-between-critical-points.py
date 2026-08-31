@@ -7,21 +7,28 @@
 
 class Solution:
     def nodesBetweenCriticalPoints(self, head: ListNode) -> List[int]:
-
-        node_index, critical_point_indices, previous_node_value = 0, [], head.val
+        node_position_index = 0
+        critical_point_positions = []
+        previous_node_value = head.val
 
         while head.next:
             if (previous_node_value - head.val) * (head.val - head.next.val) < 0:
-                critical_point_indices.append(node_index)
+                critical_point_positions.append(node_position_index)
+            
+            previous_node_value = head.val
+            head = head.next
+            node_position_index += 1
 
-            previous_node_value, head = head.val, head.next
-            node_index += 1
-
-        num_critical_points = len(critical_point_indices)
-        if num_critical_points < 2:
+        num_critical_points_found = len(critical_point_positions)
+        
+        if num_critical_points_found < 2:
             return [-1, -1]
 
-        min_distance_between_critical_points = min((critical_point_indices[i] - critical_point_indices[i-1] for i in range(1, num_critical_points)))
-        max_distance_between_critical_points = critical_point_indices[-1] - critical_point_indices[0]
+        min_adjacent_distance = min(
+            (critical_point_positions[i] - critical_point_positions[i-1] 
+             for i in range(1, num_critical_points_found))
+        )
+        
+        max_overall_distance = critical_point_positions[-1] - critical_point_positions[0]
 
-        return [min_distance_between_critical_points, max_distance_between_critical_points]
+        return [min_adjacent_distance, max_overall_distance]
