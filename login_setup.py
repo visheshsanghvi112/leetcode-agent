@@ -14,12 +14,12 @@ Steps:
 """
 import json
 import re
-import logging
-from leetcode_api import check_user_session
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+import urllib.request
+import urllib.error
 
 SESSION_FILE = "leetcode_session.json"
+LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql/"
+DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
 
 def parse_cookie_string(cookie_string):
@@ -31,6 +31,40 @@ def parse_cookie_string(cookie_string):
             name, value = pair.split("=", 1)
             cookies[name.strip()] = value.strip()
     return cookies
+
+
+def verify_leetcode_cookies(cookies):
+    """Verifies cookies against LeetCode GraphQL using pure standard library."""
+    query = """
+    query userStatus {
+      userStatus {
+        isSignedIn
+        username
+      }
+    }
+    """
+    cookie_header = "; ".join(f"{k}={v}" for k, v in cookies.items())
+    req = urllib.request.Request(
+        LEETCODE_GRAPHQL_URL,
+        data=json.dumps({"query": query}).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": DEFAULT_USER_AGENT,
+            "Cookie": cookie_header,
+            "x-csrftoken": cookies.get("csrftoken", ""),
+            "Referer": "https://leetcode.com/",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            user_status = data.get("data", {}).get("userStatus", {})
+            return {
+                "is_signed_in": user_status.get("isSignedIn", False),
+                "username": user_status.get("username", ""),
+            }
+    except Exception as e:
+        return {"is_signed_in": False, "username": "", "error": str(e)}
 
 
 def main():
@@ -87,7 +121,7 @@ def main():
 
     # Verify session with LeetCode GraphQL
     print("\nVerifying session with LeetCode...")
-    auth_status = check_user_session(cookies)
+    auth_status = verify_leetcode_cookies(cookies)
     if auth_status.get("is_signed_in"):
         print(f"✅ SUCCESS: Verified logged-in account: '{auth_status.get('username')}'")
     else:
@@ -122,7 +156,7 @@ def main():
         "origins": [],
     }
 
-    with open(SESSION_FILE, "w") as f:
+    with open(SESSION_FILE, "w", encoding="utf-8") as f:
         json.dump(storage_state, f, indent=2)
 
     print()
@@ -147,4 +181,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
