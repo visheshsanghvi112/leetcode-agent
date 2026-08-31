@@ -7,28 +7,21 @@
 
 class Solution:
     def nodesBetweenCriticalPoints(self, head: ListNode) -> List[int]:
-        node_position_index = 0
-        critical_point_positions = []
-        previous_node_value = head.val
 
+        ct, critPts, prev = 0, [], head.val                         # keep track of node-count, critical points
+                                                                    # encountered, and previous node value
         while head.next:
-            if (previous_node_value - head.val) * (head.val - head.next.val) < 0:
-                critical_point_positions.append(node_position_index)
-            
-            previous_node_value = head.val
-            head = head.next
-            node_position_index += 1
+																	# Tests for critical points: product < 0 if and only if
+            if (prev-head.val)*(head.val-head.next.val) < 0:        #          prev < head.val > head.next.val, or 
+                critPts.append(ct)                                  #          prev > head.val < head.next.val
+                                                      
+            prev, head = head.val, head.next                        # iterates to next node and increments node-count
+            ct+= 1
 
-        num_critical_points_found = len(critical_point_positions)
-        
-        if num_critical_points_found < 2:
-            return [-1, -1]
+        n = len(critPts)                                            # fewer than 2 nodes
+        if n < 2: return [-1,-1]
 
-        min_adjacent_distance = min(
-            (critical_point_positions[i] - critical_point_positions[i-1] 
-             for i in range(1, num_critical_points_found))
-        )
-        
-        max_overall_distance = critical_point_positions[-1] - critical_point_positions[0]
+        mn = min((critPts[i]-critPts[i-1] for i in range(1, n)))    # list already sorted, so min is least dist between 
+        mx = critPts[-1] - critPts[0]                               # consecutive elements; max is last element - 1st element
 
-        return [min_adjacent_distance, max_overall_distance]
+        return [mn, mx]
