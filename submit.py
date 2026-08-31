@@ -108,27 +108,49 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
         except Exception as err:
             logging.debug(f"Could not update session file: {err}")
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-dev-shm-usage",
-            ],
-        )
+    profile_dir = os.path.abspath("./.leetcode_browser_data")
 
-        context = browser.new_context(
-            user_agent=DEFAULT_USER_AGENT,
-            viewport={"width": 1920, "height": 1080},
-            device_scale_factor=1,
-            permissions=["clipboard-read", "clipboard-write"],
-        )
+    with sync_playwright() as p:
+        if os.path.exists(profile_dir) and os.path.isdir(profile_dir) and os.listdir(profile_dir):
+            logging.info(f"Using persistent browser profile at '{profile_dir}'.")
+            context = p.chromium.launch_persistent_context(
+                user_data_dir=profile_dir,
+                headless=True,
+                user_agent=DEFAULT_USER_AGENT,
+                viewport={"width": 1920, "height": 1080},
+                device_scale_factor=1,
+                permissions=["clipboard-read", "clipboard-write"],
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                ],
+            )
+            browser = None
+        else:
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                ],
+            )
+            context = browser.new_context(
+                user_agent=DEFAULT_USER_AGENT,
+                viewport={"width": 1920, "height": 1080},
+                device_scale_factor=1,
+                permissions=["clipboard-read", "clipboard-write"],
+            )
+
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
         # Explicitly build and register well-formed cookies for Playwright
-        if storage_state and "cookies" in storage_state:
+        if not browser and storage_state and "cookies" in storage_state:
+            pass
+        elif storage_state and "cookies" in storage_state:
             cookies_to_add = []
             for c in storage_state["cookies"]:
                 c_name = c.get("name")
@@ -151,13 +173,21 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                 except Exception as e:
                     logging.warning(f"Error adding cookies to context: {e}")
 
-        page = context.new_page()
+        page = context.pages[0] if context.pages else context.new_page()
+
+        def close_all():
+            try:
+                if browser:
+                    browser.close()
+                else:
+                    context.close()
+            except Exception:
+                pass
 
         try:
-
-
             logging.info(f"Navigating to problem page: {problem_url}")
             page.goto(problem_url, wait_until="domcontentloaded", timeout=30000)
+
 
             # Wait briefly for cloudflare or hydration to complete
             page.wait_for_timeout(3000)
@@ -167,7 +197,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             if "/accounts/login" in current_url:
                 logging.error("LeetCode redirected to login page! Session cookies have expired. Please run login_setup.py.")
                 page.screenshot(path="debug_session_expired.png")
-                browser.close()
+                close_all()
                 return "Error: Session Expired (Login Required)"
 
             page_title = page.title()
@@ -295,13 +325,13 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                 if submission_network_result.get("verdict"):
                     final_verdict = submission_network_result["verdict"]
                     save_refreshed_session()
-                    browser.close()
+                    close_all()
                     return final_verdict
                 if submission_network_result.get("submission_id"):
                     sub_id = submission_network_result["submission_id"]
                     verdict = poll_submission_verdict(page, sub_id)
                     save_refreshed_session()
-                    browser.close()
+                    close_all()
                     return verdict
 
             # Check DOM for submission result
@@ -311,7 +341,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
                     result_text = result_elem.inner_text().strip()
                     logging.info(f"DOM Submission Result: {result_text}")
                     save_refreshed_session()
-                    browser.close()
+                    close_all()
                     return result_text
             except Exception:
                 pass
@@ -319,7 +349,7 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             # Capture screenshot
             page.screenshot(path="debug_submission_failure.png")
             save_refreshed_session()
-            browser.close()
+            close_all()
             return "Submission Sent (Check LeetCode Profile)"
 
 
@@ -327,12 +357,11 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
         except Exception as e:
             logging.error(f"Playwright submission encountered exception: {e}")
             try:
-                page.screenshot(path="debug_submission_error.png")
+                page.screenshot(path="debug_submission_failure.png")
             except Exception:
                 pass
-            save_refreshed_session()
-            browser.close()
-            return f"Error interacting with browser: {e}"
+            close_all()
+            return f"Error: Submission Failed ({e})"
 
 
 
