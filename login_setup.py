@@ -49,13 +49,24 @@ def verify_leetcode_cookies(cookies):
 
 
 def parse_raw_input(raw_text):
-    """Intelligently parses cookies whether pasted as key=value pairs, raw session value, or JSON."""
+    """Intelligently parses cookies from TSV table copy, key=value pairs, JSON, or raw token."""
     raw_text = raw_text.strip()
+    cookies = {}
+
+    # Check for DevTools table TSV paste (Name \t Value \t ...)
+    if "\t" in raw_text:
+        for line in raw_text.splitlines():
+            parts = line.strip().split("\t")
+            if len(parts) >= 2:
+                name, val = parts[0].strip(), parts[1].strip()
+                if name and val:
+                    cookies[name] = val
+        if cookies.get("LEETCODE_SESSION"):
+            return cookies
+
     # Remove quotes
     if (raw_text.startswith('"') and raw_text.endswith('"')) or (raw_text.startswith("'") and raw_text.endswith("'")):
         raw_text = raw_text[1:-1].strip()
-
-    cookies = {}
 
     # Check if user pasted JSON
     if raw_text.startswith("{"):
@@ -78,11 +89,12 @@ def parse_raw_input(raw_text):
                 name, val = pair.split("=", 1)
                 cookies[name.strip()] = val.strip()
 
-    # If it's a standalone session string (starts with eyJ or similar long base64 string)
-    if not cookies.get("LEETCODE_SESSION") and len(raw_text) > 40 and " " not in raw_text:
+    # If it's a standalone session string (starts with eyJ or similar long token)
+    if not cookies.get("LEETCODE_SESSION") and len(raw_text) > 40 and " " not in raw_text and "\t" not in raw_text:
         cookies["LEETCODE_SESSION"] = raw_text
 
     return cookies
+
 
 
 def main():
