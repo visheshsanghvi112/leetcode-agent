@@ -7,24 +7,21 @@
 
 class Solution:
     def nodesBetweenCriticalPoints(self, head: ListNode) -> List[int]:
-        node_index_counter = 0
-        critical_point_indices = []
-        previous_node_value = head.val
-        current_list_node = head
 
-        while current_list_node.next:
-            if (previous_node_value - current_list_node.val) * (current_list_node.val - current_list_node.next.val) < 0:
-                critical_point_indices.append(node_index_counter)
+        ct, critPts, prev = 0, [], head.val                         # keep track of node-count, critical points
+                                                                    # encountered, and previous node value
+        while head.next:
+																	# Tests for critical points: product < 0 if and only if
+            if (prev-head.val)*(head.val-head.next.val) < 0:        #          prev < head.val > head.next.val, or 
+                critPts.append(ct)                                  #          prev > head.val < head.next.val
+                                                      
+            prev, head = head.val, head.next                        # iterates to next node and increments node-count
+            ct+= 1
 
-            previous_node_value = current_list_node.val
-            current_list_node = current_list_node.next
-            node_index_counter += 1
+        n = len(critPts)                                            # fewer than 2 nodes
+        if n < 2: return [-1,-1]
 
-        num_critical_points = len(critical_point_indices)
-        if num_critical_points < 2:
-            return [-1, -1]
+        mn = min((critPts[i]-critPts[i-1] for i in range(1, n)))    # list already sorted, so min is least dist between 
+        mx = critPts[-1] - critPts[0]                               # consecutive elements; max is last element - 1st element
 
-        minimum_distance = min((critical_point_indices[idx] - critical_point_indices[idx-1] for idx in range(1, num_critical_points)))
-        maximum_distance = critical_point_indices[-1] - critical_point_indices[0]
-
-        return [minimum_distance, maximum_distance]
+        return [mn, mx]
