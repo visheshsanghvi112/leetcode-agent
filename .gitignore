@@ -17,3 +17,5 @@ Thumbs.db
 
 # Test files
 test_*.py
+.leetcode_browser_data/
+debug_submission_failure.png

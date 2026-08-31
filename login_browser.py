@@ -42,15 +42,21 @@ def interactive_login():
 
         authenticated = False
 
-        # Poll until user is logged in (up to 5 minutes)
-        for _ in range(150):
+        # Poll until user is logged in (up to 10 minutes)
+        for i in range(300):
             time.sleep(2)
             try:
                 cookies = context.cookies(["https://leetcode.com"])
                 session_cookie = next((c for c in cookies if c["name"] == "LEETCODE_SESSION"), None)
                 csrf_cookie = next((c for c in cookies if c["name"] == "csrftoken"), None)
 
-                if session_cookie and csrf_cookie:
+                if session_cookie and session_cookie.get("value") and len(session_cookie["value"]) > 30:
+                    # Check if not on login page or avatar is present
+                    curr_url = page.url
+                    if "/accounts/login" not in curr_url:
+                        authenticated = True
+                        break
+                    # Even on login page, check if GraphQL or avatar shows logged in
                     user_status = page.evaluate("""
                         () => {
                             try {
@@ -60,8 +66,7 @@ def interactive_login():
                             return false;
                         }
                     """)
-                    
-                    if user_status or "/problems" in page.url or "/explore" in page.url or page.url == "https://leetcode.com/":
+                    if user_status:
                         authenticated = True
                         break
             except Exception:
@@ -69,7 +74,18 @@ def interactive_login():
 
         if authenticated:
             logging.info("🎉 Login detected successfully!")
+            # Wait 2 seconds for all auth cookies to settle
+            time.sleep(2)
             storage_state = context.storage_state()
+            
+            # Ensure cookies have expires timestamp
+            for c in storage_state.get("cookies", []):
+                c["expires"] = 2147483647
+                c["domain"] = ".leetcode.com"
+                c["path"] = "/"
+                c["secure"] = True
+                c["sameSite"] = "Lax"
+
             with open(SESSION_FILE, "w", encoding="utf-8") as f:
                 json.dump(storage_state, f, indent=2)
             logging.info(f"Saved session to '{SESSION_FILE}' and persistent profile to '{PROFILE_DIR}'.")
@@ -80,8 +96,8 @@ def interactive_login():
                 subprocess.run(["gh", "secret", "set", "LEETCODE_SESSION_JSON", "--env", "leetcode"], input=json.dumps(storage_state).encode(), check=False)
                 subprocess.run(["gh", "secret", "set", "LEETCODE_SESSION_JSON"], input=json.dumps(storage_state).encode(), check=False)
                 logging.info("Synced session to GitHub Secrets.")
-            except Exception:
-                pass
+            except Exception as e:
+                logging.debug(f"GitHub secret sync note: {e}")
 
             context.close()
             print("\n" + "=" * 65)
@@ -90,9 +106,10 @@ def interactive_login():
             print("=" * 65 + "\n")
             return True
         else:
-            logging.warning("Login timeout reached (5 minutes). Please try running again.")
+            logging.warning("Login timeout reached. Please run the script again.")
             context.close()
             return False
+
 
 
 if __name__ == "__main__":
