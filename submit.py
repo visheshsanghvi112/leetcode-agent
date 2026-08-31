@@ -215,9 +215,64 @@ def submit_solution(question_slug, code, language="python3", question_id=None, s
             page.on("response", handle_response)
 
             # -------------------------------------------------------------
+            # Strategy 1: In-Browser Evaluated Fetch (Fastest & Most Reliable)
+            # -------------------------------------------------------------
+            if question_id:
+                logging.info("Executing Strategy 1: In-Browser Evaluated API Submission...")
+                try:
+                    submit_response = page.evaluate(
+                        """
+                        async ([slug, qId, codeStr, langStr, csrf]) => {
+                            let token = csrf;
+                            if (!token) {
+                                const match = document.cookie.match(/csrftoken=([^;]+)/);
+                                if (match) token = match[1];
+                            }
+                            try {
+                                const res = await fetch(`/problems/${slug}/submit/`, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        "x-csrftoken": token,
+                                        "x-requested-with": "XMLHttpRequest"
+                                    },
+                                    body: JSON.stringify({
+                                        lang: langStr,
+                                        question_id: String(qId),
+                                        typed_code: codeStr
+                                    })
+                                });
+                                const json = await res.json();
+                                return { status: res.status, data: json };
+                            } catch (err) {
+                                return { error: err.toString() };
+                            }
+                        }
+                        """,
+                        [question_slug, question_id, code, language, csrf_token],
+                    )
+
+                    if submit_response and "data" in submit_response:
+                        data = submit_response["data"]
+                        submission_id = data.get("submission_id")
+
+                        if submission_id:
+                            logging.info(f"Submission accepted by LeetCode! Submission ID: {submission_id}")
+                            verdict = poll_submission_verdict(page, submission_id)
+                            save_refreshed_session()
+                            if verdict:
+                                browser.close()
+                                return verdict
+                        elif "error" in data:
+                            logging.warning(f"Strategy 1 API returned: {data['error']}")
+                except Exception as e:
+                    logging.warning(f"Strategy 1 execution error: {e}")
+
+            # -------------------------------------------------------------
             # Strategy 2: Direct Monaco Editor JS API Injection + Click Submit
             # -------------------------------------------------------------
             logging.info("Executing Monaco Editor API Injection...")
+
             monaco_set = page.evaluate(
                 """
                 ([codeStr]) => {
