@@ -19,3 +19,4 @@ Thumbs.db
 test_*.py
 .leetcode_browser_data/
 debug_submission_failure.png
+*.log
