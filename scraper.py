@@ -292,7 +292,19 @@ def try_playwright_scrape(question_slug, search_query, leetcode_lang_id, session
 
 
 def is_language_code(text, language="python"):
+    if not text or len(text) < 10:
+        return False
+
     text_lower = text.lower()
+
+    # Disqualify CSS stylesheets, HTML markup, and editor theme artifacts
+    css_disqualifiers = [
+        "var(--", "font-family", "font-size", "margin:", "padding:", "border:",
+        "display: flex", "display: none", "overflow:", "box-sizing", "px;", "rem;",
+        "cursor: pointer", ".monaco-", "@keyframes", "<html", "<body", "<div"
+    ]
+    if any(cd in text_lower for cd in css_disqualifiers):
+        return False
 
     if language in ["python", "python3"]:
         # Disqualify C++/Java/Rust/Go signatures
@@ -312,13 +324,16 @@ def is_language_code(text, language="python"):
         if "def " in text:
             return False
         js_indicators = ["var ", "let ", "const ", "function", "=>", "console.log", "return "]
-        return sum(1 for ind in js_indicators if ind in text_lower) >= 2
+        has_js_func = "function" in text or "=>" in text or "var " in text or "let " in text or "const " in text
+        has_return = "return " in text
+        return has_js_func and (has_return or sum(1 for ind in js_indicators if ind in text_lower) >= 2)
 
     elif language == "pandas":
         pandas_indicators = ["import pandas", "pd.", "def ", ".map", ".apply", ".merge", ".groupby", "dataframe"]
         return sum(1 for ind in pandas_indicators if ind in text_lower) >= 2
 
     return True
+
 
 
 def extract_code_from_markdown(content, language="python"):

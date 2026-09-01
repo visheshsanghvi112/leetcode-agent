@@ -15,6 +15,9 @@ import sys
 import json
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from leetcode_api import check_user_session
 from solver import solve_daily
@@ -22,6 +25,7 @@ from submit import submit_solution
 from notifier import send_telegram_notification
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
 
 SOLUTIONS_DIR = "solutions"
 SESSION_FILE = "leetcode_session.json"

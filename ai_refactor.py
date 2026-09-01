@@ -2,16 +2,19 @@ import os
 import re
 import requests
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Supported Gemini models in order of priority
+# Supported Gemini models in order of priority (blazing fast + high reliability)
 GEMINI_MODELS = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemma-4-31b-it",
 ]
 
 
@@ -64,7 +67,8 @@ def query_gemini(prompt: str, temperature: float = 0.4) -> str:
             },
         }
         try:
-            req = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=30)
+            req = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=60)
+
             if req.status_code == 200:
                 data = req.json()
                 candidates = data.get("candidates", [])
